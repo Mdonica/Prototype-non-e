@@ -162,6 +162,7 @@ function SupervisorView({
                   <div className="history-details">
                     <span>{formatTimeOfDay(new Date(e.at))}</span>
                     <span className="history-duration">{e.reason}</span>
+                    {e.wasReplacing && <span>Was replacing: {e.wasReplacing}</span>}
                   </div>
                   <div className="history-reason">
                     {e.acknowledged ? (

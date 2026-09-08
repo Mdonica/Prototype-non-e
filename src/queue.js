@@ -128,9 +128,11 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
         )
       );
     }
-    // Use each slot's pending "up next" person when the lineup hasn't changed size.
+    // Automatic hourly rolls randomize the active lineup; supervisor rolls can use pending replacements.
     const canPromoteNextUps =
-      prevSlots.length === slotCountRef.current && prevSlots.every((s) => s.nextUp);
+      reasonLabel !== 'Scheduled roll' &&
+      prevSlots.length === slotCountRef.current &&
+      prevSlots.every((s) => s.nextUp);
     const newCurrents = canPromoteNextUps
       ? prevSlots.map((s, i) => ({
           ...roster.find((p) => p.id === s.nextUp.id),
@@ -191,6 +193,7 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
             id: `${prev.id}-${rolledAt}`,
             name: prev.name,
             desk: prev.desk,
+            wasReplacing: prev.relieving?.name ?? null,
             reason: reasonLabel,
             at: rolledAt,
             acknowledged: false,
