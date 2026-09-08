@@ -169,7 +169,9 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
               >
                 <div className="on-deck-card-body">
                   {slot.id === myId && <div className="you-flag">This is you</div>}
-                  <div className="on-deck-name">Calltaker {slot.slotIndex + 1}</div>
+                  <div className="on-deck-name">
+                    {slot.accepted ? slot.name : `Calltaker ${slot.slotIndex + 1}`}
+                  </div>
                   <div className="picked-at">Picked at {formatPreciseTime(new Date(slot.assignedAt))}</div>
                   <div className="on-deck-stats">
                     <div className="stat">
