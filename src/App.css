@@ -314,6 +314,15 @@ body {
 .calltaker-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 300px));
   justify-content: center;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+
+.calltaker-grid .on-deck-card {
+  min-height: 290px;
+  padding: 1.8rem;
 }
 
 .staffing-control {
