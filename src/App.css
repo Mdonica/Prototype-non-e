@@ -340,6 +340,25 @@ body {
   font-size: 0.95rem;
 }
 
+.staffing-control select {
+  width: 100%;
+  max-width: 260px;
+  padding: 0.5rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  font-family: inherit;
+}
+
+.control-help {
+  max-width: 620px;
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .on-deck-name {
   font-size: 1.9rem;
   font-weight: 700;
@@ -601,6 +620,15 @@ body {
   text-align: center;
   box-shadow: 0 0 0 6px var(--amber-soft), 0 20px 60px -15px rgba(0, 0, 0, 0.5);
   animation: announce-pop 0.25s ease-out;
+}
+
+.release-modal {
+  border-color: #15803d;
+  box-shadow: 0 0 0 6px #dcfce7, 0 20px 60px -15px rgba(0, 0, 0, 0.5);
+}
+
+.release-modal .announce-icon {
+  color: #15803d;
 }
 
 @keyframes announce-pop {

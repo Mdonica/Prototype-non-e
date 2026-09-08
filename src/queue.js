@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export const ROLL_INTERVAL_MS = 60 * 60 * 1000; // one hour
+export const AUTO_ROLL_DELAYS = [
+  { label: 'Immediate', value: 0 },
+  { label: '5 minutes', value: 5 * 60 * 1000 },
+  { label: '10 minutes', value: 10 * 60 * 1000 },
+  { label: '15 minutes', value: 15 * 60 * 1000 },
+];
 export const HISTORY_LIMIT = 12;
 export const ESCALATION_LIMIT = 20;
 
@@ -110,14 +116,24 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
   const [history, setHistory] = useState([]);
   const [nextRollAt, setNextRollAt] = useState(() => Date.now() + ROLL_INTERVAL_MS);
   const [now, setNow] = useState(Date.now());
+  const [autoRollDelayMs, setAutoRollDelayMs] = useState(0);
   const [escalations, setEscalations] = useState([]);
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
   const slotCountRef = useRef(slotCount);
   slotCountRef.current = slotCount;
+  const autoRollDelayRef = useRef(autoRollDelayMs);
+  autoRollDelayRef.current = autoRollDelayMs;
+  const autoRollTimersRef = useRef([]);
+
+  const clearAutoRollTimers = () => {
+    autoRollTimersRef.current.forEach((timer) => clearTimeout(timer));
+    autoRollTimersRef.current = [];
+  };
 
   // Roll everyone at once (used for the hourly auto-roll and manual "Roll All").
   const rollAll = (reasonLabel) => {
+    clearAutoRollTimers();
     const rolledAt = Date.now();
     const prevSlots = slotsRef.current;
     if (prevSlots.length > 0) {
@@ -154,23 +170,92 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
     setNextRollAt(rolledAt + ROLL_INTERVAL_MS);
   };
 
+  const startAutomaticRoll = () => {
+    clearAutoRollTimers();
+    const picks = pickMany(roster, slotCountRef.current);
+    const timers = picks.map((person, index) =>
+      setTimeout(() => {
+        const rolledAt = Date.now();
+        const previous = slotsRef.current.find((slot) => slot.slotIndex === index);
+        if (previous) {
+          setHistory((h) =>
+            [{ ...previous, end: rolledAt, reason: 'Scheduled roll' }, ...h].slice(
+              0,
+              HISTORY_LIMIT
+            )
+          );
+        }
+        setSlots((s) => {
+          const updated = s.map((slot) =>
+            slot.slotIndex === index
+              ? {
+                  ...person,
+                  assignedAt: rolledAt,
+                  slotIndex: index,
+                  accepted: false,
+                  acceptedAt: null,
+                  relieving: previous ? { name: previous.name, desk: previous.desk } : null,
+                }
+              : slot
+          );
+          return assignNextUps(updated, roster);
+        });
+      }, index * autoRollDelayRef.current)
+    );
+    autoRollTimersRef.current = timers;
+  };
+
   // Roll just one slot (used for "Have an issue?" and manual single assignment).
   const rollSlot = (slotIndex, reasonLabel, targetId) => {
+    clearAutoRollTimers();
     const rolledAt = Date.now();
     const prevSlots = slotsRef.current;
     const prev = prevSlots.find((s) => s.slotIndex === slotIndex);
+    const next = targetId
+      ? roster.find((p) => p.id === targetId)
+      : prev?.nextUp
+        ? roster.find((p) => p.id === prev.nextUp.id)
+        : pickMany(roster, 1, prevSlots.map((s) => s.id))[0];
+    if (!next) return;
+
+    if (prev && ISSUE_REASONS.includes(reasonLabel)) {
+      setSlots((s) =>
+        s.map((slot) =>
+          slot.slotIndex === slotIndex
+            ? {
+                ...slot,
+                pendingReplacement: {
+                  ...next,
+                  assignedAt: rolledAt,
+                  reason: reasonLabel,
+                },
+              }
+            : slot
+        )
+      );
+      setEscalations((e) =>
+        [
+          {
+            id: `${prev.id}-${rolledAt}`,
+            name: prev.name,
+            desk: prev.desk,
+            wasReplacing: prev.relieving?.name ?? null,
+            replacement: next.name,
+            reason: reasonLabel,
+            at: rolledAt,
+            acknowledged: false,
+          },
+          ...e,
+        ].slice(0, ESCALATION_LIMIT)
+      );
+      return;
+    }
+
     if (prev) {
       setHistory((h) =>
         [{ ...prev, end: rolledAt, reason: reasonLabel }, ...h].slice(0, HISTORY_LIMIT)
       );
     }
-    const excludeIds = prevSlots.map((s) => s.id);
-    const next = targetId
-      ? roster.find((p) => p.id === targetId)
-      : prev?.nextUp
-        ? roster.find((p) => p.id === prev.nextUp.id)
-        : pickMany(roster, 1, excludeIds)[0];
-    if (!next) return;
     setSlots((s) => {
       const updated = s.map((slot) =>
         slot.slotIndex === slotIndex
@@ -206,6 +291,7 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
 
   // Supervisor staffing-level control: grow or shrink how many people are in the queue at once.
   const setSlotCount = (count) => {
+    clearAutoRollTimers();
     const clamped = Math.max(MIN_SLOTS, Math.min(roster.length, Math.round(count) || MIN_SLOTS));
     const prevSlots = slotsRef.current;
     setSlotCountState(clamped);
@@ -237,8 +323,34 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
 
   const acknowledgeSlot = (slotIndex) => {
     const acceptedAt = Date.now();
+    const slot = slotsRef.current.find((item) => item.slotIndex === slotIndex);
+    if (!slot) return;
+    if (slot.pendingReplacement) {
+      setHistory((h) =>
+        [{ ...slot, end: acceptedAt, reason: 'Problem replacement accepted' }, ...h].slice(
+          0,
+          HISTORY_LIMIT
+        )
+      );
+      setSlots((s) => {
+        const updated = s.map((item) =>
+          item.slotIndex === slotIndex
+            ? {
+                ...slot.pendingReplacement,
+                slotIndex,
+                assignedAt: slot.pendingReplacement.assignedAt,
+                accepted: true,
+                acceptedAt,
+                relieving: { name: slot.name, desk: slot.desk },
+              }
+            : item
+        );
+        return assignNextUps(updated, roster);
+      });
+      return;
+    }
     setSlots((s) =>
-      s.map((slot) => (slot.slotIndex === slotIndex ? { ...slot, accepted: true, acceptedAt } : slot))
+      s.map((item) => (item.slotIndex === slotIndex ? { ...item, accepted: true, acceptedAt } : item))
     );
   };
 
@@ -258,7 +370,8 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
       const t = Date.now();
       setNow(t);
       if (t >= nextRollAt) {
-        rollAll('Scheduled roll');
+        startAutomaticRoll();
+        setNextRollAt(t + ROLL_INTERVAL_MS);
       }
     }, 1000);
     return () => clearInterval(id);
@@ -270,6 +383,8 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
     slots,
     slotCount,
     setSlotCount,
+    autoRollDelayMs,
+    setAutoRollDelayMs,
     history,
     nextRollAt,
     now,

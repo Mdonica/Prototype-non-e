@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MIN_SLOTS, formatClock, formatTimeOfDay, shiftLabel } from './queue';
+import { AUTO_ROLL_DELAYS, MIN_SLOTS, formatClock, formatTimeOfDay, shiftLabel } from './queue';
 import HistoryList from './HistoryList';
 
 function SupervisorView({
@@ -7,6 +7,8 @@ function SupervisorView({
   slots,
   slotCount,
   setSlotCount,
+  autoRollDelayMs,
+  setAutoRollDelayMs,
   history,
   nextRollAt,
   now,
@@ -75,6 +77,25 @@ function SupervisorView({
                 Set
               </button>
             </div>
+          </div>
+
+          <div className="staffing-control">
+            <label htmlFor="roll-delay-select">Delay between automatic calltaker swaps</label>
+            <select
+              id="roll-delay-select"
+              value={autoRollDelayMs}
+              onChange={(e) => setAutoRollDelayMs(Number(e.target.value))}
+            >
+              {AUTO_ROLL_DELAYS.map((delay) => (
+                <option key={delay.value} value={delay.value}>
+                  {delay.label}
+                </option>
+              ))}
+            </select>
+            <p className="control-help">
+              Immediate swaps everyone at once. Delayed options give each calltaker time to
+              accept, sign out, and clear the queue before the next slot changes.
+            </p>
           </div>
 
           <div className="on-deck-grid">
