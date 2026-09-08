@@ -173,26 +173,33 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
         </div>
       </header>
 
-      {!mySlot && (
-        <div className="waiting-banner">
-          You&apos;re logged in as <strong>{myPerson.name}</strong> — waiting to be rolled into
-          the queue.
-          {myJoinRequest?.status === 'pending' ? (
-            <span className="request-status">Join request sent to supervisor</span>
-          ) : myJoinRequest?.status === 'denied' ? (
-            <>
-              <span className="request-status request-denied">Request denied by supervisor</span>
+      <div className={`queue-request-bar ${mySlot ? 'queue-request-active' : ''}`}>
+        {mySlot ? (
+          <span>
+            <strong>You are currently in Non-Emergency</strong> · {mySlot.accepted ? 'Active' : 'Awaiting acceptance'}
+          </span>
+        ) : (
+          <>
+            <span>
+              <strong>Not currently in Non-Emergency</strong> · Prefer to join the queue?
+            </span>
+            {myJoinRequest?.status === 'pending' ? (
+              <span className="request-status">Join request sent to supervisor</span>
+            ) : myJoinRequest?.status === 'denied' ? (
+              <>
+                <span className="request-status request-denied">Request denied by supervisor</span>
+                <button className="btn btn-primary btn-small" onClick={() => requestJoin(myId)}>
+                  Request again
+                </button>
+              </>
+            ) : (
               <button className="btn btn-primary btn-small" onClick={() => requestJoin(myId)}>
-                Request again
+                Request to join queue
               </button>
-            </>
-          ) : (
-            <button className="btn btn-primary btn-small" onClick={() => requestJoin(myId)}>
-              Request to join queue
-            </button>
-          )}
-        </div>
-      )}
+            )}
+          </>
+        )}
+      </div>
 
       <main className="dispatch-main dispatch-main-single">
         <section className="on-deck-panel">
