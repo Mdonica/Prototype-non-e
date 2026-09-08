@@ -296,8 +296,13 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
                     </div>
                   </>
                 ) : (
-                  <div className="read-only-tag">
-                    {slot.accepted ? 'Active in queue' : 'Awaiting their acceptance'}
+                  <div className="on-deck-actions">
+                    <div className="read-only-tag">
+                      {slot.accepted ? 'Active in queue' : 'Awaiting their acceptance'}
+                    </div>
+                    <button className="btn btn-warning" onClick={() => openIssue(slot.slotIndex)}>
+                      Have an issue?
+                    </button>
                   </div>
                 )}
               </div>
