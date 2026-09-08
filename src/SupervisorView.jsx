@@ -15,6 +15,7 @@ function SupervisorView({
   escalations,
   rollAll,
   rollSlot,
+  acknowledgeSlot,
   acknowledgeEscalation,
   joinRequests,
   approveJoinRequest,
@@ -116,7 +117,17 @@ function SupervisorView({
                 <div className="next-up">
                   {slot.nextUp ? `Up next: ${slot.nextUp.name}` : 'Up next: —'}
                 </div>
-                {!slot.accepted && <div className="pending-tag">Awaiting accept</div>}
+                {!slot.accepted && (
+                  <div className="accept-banner">
+                    <span>Awaiting accept</span>
+                    <button
+                      className="btn btn-primary btn-small"
+                      onClick={() => acknowledgeSlot(slot.slotIndex)}
+                    >
+                      Accept
+                    </button>
+                  </div>
+                )}
 
               </div>
             ))}
