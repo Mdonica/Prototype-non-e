@@ -61,15 +61,22 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
   }, [slots]);
 
   // Pop up the full-screen "you've been picked" announcement only for this calltaker's own
-  // slot, and only once per pick.
+  // slot, and only once per pick. Don't re-announce to the outgoing occupant when they're the
+  // one who filed the issue that created a pendingReplacement for someone else.
   useEffect(() => {
     if (myId == null) return;
-    const mySlot = slots.find(
-      (s) => s.id === myId || s.pendingReplacement?.id === myId
-    );
-    const pending = mySlot?.pendingReplacement;
-    if (!mySlot || (!pending && (mySlot.id !== myId || mySlot.accepted))) return;
-    const key = `${mySlot.slotIndex}-${pending?.assignedAt ?? mySlot.assignedAt}`;
+    const replacementSlot = slots.find((s) => s.pendingReplacement?.id === myId);
+    if (replacementSlot) {
+      const key = `${replacementSlot.slotIndex}-${replacementSlot.pendingReplacement.assignedAt}`;
+      if (!announcedRef.current.has(key)) {
+        announcedRef.current.add(key);
+        setAnnounceKey(key);
+      }
+      return;
+    }
+    const freshSlot = slots.find((s) => s.id === myId && !s.accepted);
+    if (!freshSlot) return;
+    const key = `${freshSlot.slotIndex}-${freshSlot.assignedAt}`;
     if (!announcedRef.current.has(key)) {
       announcedRef.current.add(key);
       setAnnounceKey(key);
