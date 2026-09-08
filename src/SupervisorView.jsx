@@ -16,6 +16,9 @@ function SupervisorView({
   rollAll,
   rollSlot,
   acknowledgeEscalation,
+  joinRequests,
+  approveJoinRequest,
+  denyJoinRequest,
 }) {
   const [assignSlot, setAssignSlot] = useState('');
   const [assignPerson, setAssignPerson] = useState('');
@@ -165,6 +168,42 @@ function SupervisorView({
             Prototype concept — staffing level controls how many people are pulled into the
             queue at once. Nothing here is wired to a real backend yet.
           </p>
+        </section>
+
+        <section className="history-panel">
+          <div className="panel-title">
+            QUEUE REQUESTS {joinRequests.filter((request) => request.status === 'pending').length > 0 &&
+              `(${joinRequests.filter((request) => request.status === 'pending').length} PENDING)`}
+          </div>
+          {joinRequests.filter((request) => request.status === 'pending').length === 0 ? (
+            <p className="empty-state">No pending requests to join the queue.</p>
+          ) : (
+            <ul className="history-list">
+              {joinRequests.filter((request) => request.status === 'pending').map((request) => (
+                <li className="history-item flagged-item" key={request.id}>
+                  <div className="history-main">
+                    <span className="history-name">{request.name}</span>
+                    <span className="history-unit">Requested {formatTimeOfDay(new Date(request.requestedAt))}</span>
+                  </div>
+                  <div className="request-actions">
+                    <button
+                      className="btn btn-primary btn-small"
+                      onClick={() => approveJoinRequest(request.id)}
+                      disabled={slots.length >= slotCount}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-small"
+                      onClick={() => denyJoinRequest(request.id)}
+                    >
+                      Deny
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="history-panel">

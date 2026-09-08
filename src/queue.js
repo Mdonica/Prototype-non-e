@@ -118,6 +118,7 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
   const [now, setNow] = useState(Date.now());
   const [autoRollDelayMs, setAutoRollDelayMs] = useState(0);
   const [escalations, setEscalations] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
   const slotCountRef = useRef(slotCount);
@@ -358,6 +359,47 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
     setEscalations((e) => e.map((x) => (x.id === id ? { ...x, acknowledged: true } : x)));
   };
 
+  const requestJoin = (personId) => {
+    const person = roster.find((p) => p.id === personId);
+    if (!person || slotsRef.current.some((slot) => slot.id === personId)) return;
+    setJoinRequests((requests) => {
+      if (requests.some((request) => request.personId === personId && request.status === 'pending')) {
+        return requests;
+      }
+      return [
+        ...requests,
+        { id: `${personId}-${Date.now()}`, personId, name: person.name, requestedAt: Date.now(), status: 'pending' },
+      ];
+    });
+  };
+
+  const approveJoinRequest = (requestId) => {
+    const request = joinRequests.find((item) => item.id === requestId && item.status === 'pending');
+    if (!request || slotsRef.current.length >= slotCountRef.current) return;
+    const assignedAt = Date.now();
+    const slotIndex = slotsRef.current.length;
+    const person = roster.find((p) => p.id === request.personId);
+    if (!person) return;
+    setSlots((currentSlots) =>
+      assignNextUps(
+        [
+          ...currentSlots,
+          { ...person, assignedAt, slotIndex, accepted: false, acceptedAt: null, relieving: null },
+        ],
+        roster
+      )
+    );
+    setJoinRequests((requests) =>
+      requests.map((item) => (item.id === requestId ? { ...item, status: 'approved' } : item))
+    );
+  };
+
+  const denyJoinRequest = (requestId) => {
+    setJoinRequests((requests) =>
+      requests.map((item) => (item.id === requestId ? { ...item, status: 'denied' } : item))
+    );
+  };
+
   // Fill the initial slots on mount.
   useEffect(() => {
     rollAll('Scheduled roll');
@@ -389,10 +431,14 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
     nextRollAt,
     now,
     escalations,
+    joinRequests,
     rollAll,
     rollSlot,
     acknowledgeSlot,
     acknowledgeEscalation,
+    requestJoin,
+    approveJoinRequest,
+    denyJoinRequest,
   };
 }
 

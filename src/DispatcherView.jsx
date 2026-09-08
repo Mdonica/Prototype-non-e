@@ -3,7 +3,7 @@ import { ISSUE_REASONS, formatClock, formatPreciseTime, formatTimeOfDay, shiftLa
 
 const MY_ID_STORAGE_KEY = 'nonEmergencyQueue.myId';
 
-function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, acknowledgeSlot }) {
+function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, acknowledgeSlot, joinRequests, requestJoin }) {
   const [myId, setMyId] = useState(() => {
     const stored = Number(localStorage.getItem(MY_ID_STORAGE_KEY));
     return roster.some((p) => p.id === stored) ? stored : null;
@@ -118,6 +118,9 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
   const mySlot = myId != null
     ? slots.find((s) => s.id === myId || s.pendingReplacement?.id === myId)
     : null;
+  const myJoinRequest = myId != null
+    ? joinRequests.find((request) => request.personId === myId && request.status !== 'approved')
+    : null;
 
   if (!myPerson) {
     return (
@@ -174,6 +177,20 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
         <div className="waiting-banner">
           You&apos;re logged in as <strong>{myPerson.name}</strong> — waiting to be rolled into
           the queue.
+          {myJoinRequest?.status === 'pending' ? (
+            <span className="request-status">Join request sent to supervisor</span>
+          ) : myJoinRequest?.status === 'denied' ? (
+            <>
+              <span className="request-status request-denied">Request denied by supervisor</span>
+              <button className="btn btn-primary btn-small" onClick={() => requestJoin(myId)}>
+                Request again
+              </button>
+            </>
+          ) : (
+            <button className="btn btn-primary btn-small" onClick={() => requestJoin(myId)}>
+              Request to join queue
+            </button>
+          )}
         </div>
       )}
 

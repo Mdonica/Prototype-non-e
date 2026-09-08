@@ -384,6 +384,17 @@ body {
   line-height: 1.4;
 }
 
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.request-denied {
+  color: var(--red);
+}
+
 .on-deck-name {
   font-size: 1.9rem;
   font-weight: 700;
