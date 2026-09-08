@@ -375,11 +375,14 @@ export function useQueueEngine(rosterSize = 50, initialSlotCount = 3) {
 
   const approveJoinRequest = (requestId) => {
     const request = joinRequests.find((item) => item.id === requestId && item.status === 'pending');
-    if (!request || slotsRef.current.length >= slotCountRef.current) return;
+    if (!request) return;
+    if (slotsRef.current.some((slot) => slot.id === request.personId)) return;
     const assignedAt = Date.now();
     const slotIndex = slotsRef.current.length;
     const person = roster.find((p) => p.id === request.personId);
     if (!person) return;
+    // Approving a request grows the queue by one so the new person doesn't bump anyone off.
+    setSlotCountState((count) => Math.max(count, slotIndex + 1));
     setSlots((currentSlots) =>
       assignNextUps(
         [

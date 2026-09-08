@@ -18,12 +18,32 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
   const announcedRef = useRef(new Set());
   const [releaseNotice, setReleaseNotice] = useState(null);
   const releaseNoticeRef = useRef(new Set());
+  const prevJoinStatusRef = useRef({});
 
   const showToast = (message) => {
     setToast(message);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 5000);
   };
+
+  // Notify this calltaker when a supervisor approves or denies their join request.
+  useEffect(() => {
+    if (myId == null) return;
+    joinRequests
+      .filter((request) => request.personId === myId)
+      .forEach((request) => {
+        const prevStatus = prevJoinStatusRef.current[request.id];
+        if (prevStatus !== request.status) {
+          if (request.status === 'approved') {
+            showToast("You've been added to the queue!");
+          } else if (request.status === 'denied') {
+            showToast('Your request to join the queue was denied by the supervisor.');
+          }
+        }
+        prevJoinStatusRef.current[request.id] = request.status;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joinRequests, myId]);
 
   // Announce whenever the roster of people on deck changes.
   useEffect(() => {
