@@ -310,6 +310,11 @@ body {
   align-items: stretch;
 }
 
+.calltaker-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 300px));
+  justify-content: center;
+}
+
 .staffing-control {
   margin-bottom: 1.1rem;
   padding-bottom: 1.1rem;

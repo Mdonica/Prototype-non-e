@@ -16,6 +16,8 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
   const prevIds = useRef('');
   const [announceKey, setAnnounceKey] = useState(null);
   const announcedRef = useRef(new Set());
+  const [releaseNotice, setReleaseNotice] = useState(null);
+  const releaseNoticeRef = useRef(new Set());
 
   const showToast = (message) => {
     setToast(message);
@@ -42,14 +44,28 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
   // slot, and only once per pick.
   useEffect(() => {
     if (myId == null) return;
-    const mySlot = slots.find((s) => s.id === myId);
-    if (!mySlot || mySlot.accepted) return;
-    const key = `${mySlot.slotIndex}-${mySlot.assignedAt}`;
+    const mySlot = slots.find(
+      (s) => s.id === myId || s.pendingReplacement?.id === myId
+    );
+    const pending = mySlot?.pendingReplacement;
+    if (!mySlot || (!pending && (mySlot.id !== myId || mySlot.accepted))) return;
+    const key = `${mySlot.slotIndex}-${pending?.assignedAt ?? mySlot.assignedAt}`;
     if (!announcedRef.current.has(key)) {
       announcedRef.current.add(key);
       setAnnounceKey(key);
     }
   }, [slots, myId]);
+
+  useEffect(() => {
+    if (myId == null) return;
+    const release = history.find(
+      (entry) => entry.id === myId && entry.reason === 'Problem replacement accepted'
+    );
+    if (release && !releaseNoticeRef.current.has(release.id + release.end)) {
+      releaseNoticeRef.current.add(release.id + release.end);
+      setReleaseNotice(release);
+    }
+  }, [history, myId]);
 
   const logIn = () => {
     if (!loginPick) return;
@@ -78,7 +94,14 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
   const issuePerson = issueSlot !== null ? slots.find((s) => s.slotIndex === issueSlot) : null;
 
   const activeAnnounceSlot = announceKey
-    ? slots.find((s) => `${s.slotIndex}-${s.assignedAt}` === announceKey && !s.accepted)
+    ? slots.reduce((found, slot) => {
+        if (found) return found;
+        const candidate = slot.pendingReplacement;
+        if (`${slot.slotIndex}-${candidate?.assignedAt ?? slot.assignedAt}` !== announceKey) {
+          return null;
+        }
+        return candidate ? { ...candidate, slotIndex: slot.slotIndex, relieving: slot } : slot;
+      }, null)
     : null;
 
   const acceptAnnouncement = () => {
@@ -92,7 +115,9 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
   };
 
   const myPerson = myId != null ? roster.find((p) => p.id === myId) : null;
-  const mySlot = myId != null ? slots.find((s) => s.id === myId) : null;
+  const mySlot = myId != null
+    ? slots.find((s) => s.id === myId || s.pendingReplacement?.id === myId)
+    : null;
 
   if (!myPerson) {
     return (
@@ -161,10 +186,14 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
               <span className="summary-badge">Next auto-roll in {formatClock(countdown)}</span>
             </div>
           </div>
-          <div className="on-deck-grid">
+          <div className="on-deck-grid calltaker-grid">
             {slots.map((slot) => (
               <div
-                className={`on-deck-card ${!slot.accepted ? 'needs-action' : ''}`}
+                className={`on-deck-card ${
+                  (slot.id === myId && !slot.accepted) || slot.pendingReplacement?.id === myId
+                    ? 'needs-action'
+                    : ''
+                }`}
                 key={slot.slotIndex}
               >
                 <div className="on-deck-card-body">
@@ -172,6 +201,11 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
                   <div className="on-deck-name">
                     {slot.accepted ? slot.name : `Calltaker ${slot.slotIndex + 1}`}
                   </div>
+                  {slot.pendingReplacement && (
+                    <div className="pending-tag">
+                      Replacement acceptance pending
+                    </div>
+                  )}
                   <div className="picked-at">Picked at {formatPreciseTime(new Date(slot.assignedAt))}</div>
                   <div className="on-deck-stats">
                     <div className="stat">
@@ -183,7 +217,17 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
                   </div>
                   <div className="next-up">{slot.nextUp ? 'Up next: assigned' : 'Up next: —'}</div>
                 </div>
-                {slot.id === myId ? (
+                {slot.pendingReplacement?.id === myId ? (
+                  <div className="accept-banner">
+                    <span>Accept to replace the current calltaker</span>
+                    <button
+                      className="btn btn-primary btn-pulse"
+                      onClick={() => acknowledgeSlot(slot.slotIndex)}
+                    >
+                      Accept
+                    </button>
+                  </div>
+                ) : slot.id === myId ? (
                   !slot.accepted ? (
                     <div className="accept-banner">
                       <span>Waiting {formatClock(now - slot.assignedAt)} for accept</span>
@@ -240,6 +284,21 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
             </button>
             <button className="btn btn-ghost btn-announce-secondary" onClick={announceHasIssue}>
               Have a problem?
+            </button>
+          </div>
+        </div>
+      )}
+
+      {releaseNotice && (
+        <div className="modal-backdrop announce-backdrop" role="alertdialog" aria-modal="true">
+          <div className="announce-modal release-modal">
+            <div className="announce-icon" aria-hidden="true">✓</div>
+            <h2>You&apos;ve been relieved from Non-Emergency</h2>
+            <p className="announce-detail">
+              The replacement calltaker accepted the handoff. You are clear of the queue.
+            </p>
+            <button className="btn btn-primary btn-announce" onClick={() => setReleaseNotice(null)}>
+              Got it
             </button>
           </div>
         </div>
