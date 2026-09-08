@@ -272,26 +272,29 @@ function DispatcherView({ roster, slots, history, nextRollAt, now, rollSlot, ack
                     </button>
                   </div>
                 ) : slot.id === myId ? (
-                  !slot.accepted ? (
-                    <div className="accept-banner">
-                      <span>Waiting {formatClock(now - slot.assignedAt)} for accept</span>
-                      <button
-                        className="btn btn-primary btn-pulse"
-                        onClick={() => acknowledgeSlot(slot.slotIndex)}
-                      >
-                        Accept
-                      </button>
-                    </div>
-                  ) : (
+                  <>
+                    {!slot.accepted && (
+                      <div className="accept-banner">
+                        <span>Waiting {formatClock(now - slot.assignedAt)} for accept</span>
+                        <button
+                          className="btn btn-primary btn-pulse"
+                          onClick={() => acknowledgeSlot(slot.slotIndex)}
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    )}
                     <div className="on-deck-actions">
-                      <button className="btn btn-ghost" onClick={() => rollSlot(slot.slotIndex, 'Relieved')}>
-                        Relieved
-                      </button>
+                      {slot.accepted && (
+                        <button className="btn btn-ghost" onClick={() => rollSlot(slot.slotIndex, 'Relieved')}>
+                          Relieved
+                        </button>
+                      )}
                       <button className="btn btn-warning" onClick={() => openIssue(slot.slotIndex)}>
                         Have an issue?
                       </button>
                     </div>
-                  )
+                  </>
                 ) : (
                   <div className="read-only-tag">
                     {slot.accepted ? 'Active in queue' : 'Awaiting their acceptance'}
