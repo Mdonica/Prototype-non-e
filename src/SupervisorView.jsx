@@ -202,7 +202,7 @@ function SupervisorView({
                       onClick={() => approveJoinRequest(request.id)}
                       disabled={slots.length >= slotCount}
                     >
-                      Approve
+                      Accept request
                     </button>
                     <button
                       className="btn btn-ghost btn-small"
